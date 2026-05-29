@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import type { Network } from '@/types'
 import { CheckCircle2, XCircle, ExternalLink, AlertCircle } from 'lucide-react'
 
@@ -10,11 +11,12 @@ interface SocialAccountUI {
   description: string
   connected: boolean
   username: string | null
-  requiresApproval?: string
+  disabled?: boolean
+  disabledReason?: string
   color: string
 }
 
-const INITIAL_ACCOUNTS: SocialAccountUI[] = [
+const BASE_ACCOUNTS: SocialAccountUI[] = [
   {
     network: 'instagram',
     label: 'Instagram',
@@ -29,6 +31,9 @@ const INITIAL_ACCOUNTS: SocialAccountUI[] = [
     description: 'Requiere +1,000 seguidores para usar Content Posting API',
     connected: false,
     username: null,
+    // TODO: TikTok OAuth requires app approval
+    disabled: true,
+    disabledReason: 'Próximamente — requiere aprobación de app TikTok',
     color: 'bg-zinc-900',
   },
   {
@@ -65,31 +70,75 @@ function NetworkLogo({ network, className }: { network: Network; className?: str
 }
 
 export default function SettingsAccountsPage() {
-  const [accounts, setAccounts] = useState<SocialAccountUI[]>(INITIAL_ACCOUNTS)
+  const searchParams = useSearchParams()
+  const [accounts, setAccounts] = useState<SocialAccountUI[]>(BASE_ACCOUNTS)
   const [connecting, setConnecting] = useState<Network | null>(null)
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const loadConnectedAccounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/social/accounts')
+      if (!res.ok) return
+      const data: Array<{ network: string; username: string | null }> = await res.json()
+
+      setAccounts((prev) =>
+        prev.map((account) => {
+          const found = data.find((d) => d.network === account.network)
+          if (found) {
+            return { ...account, connected: true, username: found.username }
+          }
+          return account
+        })
+      )
+    } catch {
+      setLoadError('No se pudieron cargar las cuentas conectadas')
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadConnectedAccounts()
+  }, [loadConnectedAccounts])
+
+  useEffect(() => {
+    const connected = searchParams.get('connected')
+    const error = searchParams.get('error')
+
+    if (connected) {
+      setNotification({
+        type: 'success',
+        message: `${connected.charAt(0).toUpperCase() + connected.slice(1)} conectado correctamente`,
+      })
+      setTimeout(() => setNotification(null), 5000)
+    } else if (error) {
+      const network = error.replace('_failed', '')
+      setNotification({
+        type: 'error',
+        message: `Error al conectar ${network}. Verifica las credenciales e intenta nuevamente.`,
+      })
+      setTimeout(() => setNotification(null), 7000)
+    }
+  }, [searchParams])
 
   function handleConnect(network: Network) {
+    if (network === 'tiktok') return
     setConnecting(network)
-    // OAuth redirect — will be implemented when Supabase + social app credentials are configured
-    // For now: simulate connection flow
-    setTimeout(() => {
-      setAccounts((prev) =>
-        prev.map((a) =>
-          a.network === network
-            ? { ...a, connected: true, username: `@mi_cuenta_${network}` }
-            : a
-        )
-      )
-      setConnecting(null)
-    }, 1500)
+    window.location.href = `/api/social/auth/${network}`
   }
 
-  function handleDisconnect(network: Network) {
-    setAccounts((prev) =>
-      prev.map((a) =>
-        a.network === network ? { ...a, connected: false, username: null } : a
+  async function handleDisconnect(network: Network) {
+    try {
+      const res = await fetch(`/api/social/disconnect/${network}`, { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to disconnect')
+      setAccounts((prev) =>
+        prev.map((a) =>
+          a.network === network ? { ...a, connected: false, username: null } : a
+        )
       )
-    )
+    } catch {
+      setNotification({ type: 'error', message: `Error al desconectar ${network}` })
+      setTimeout(() => setNotification(null), 5000)
+    }
   }
 
   return (
@@ -99,19 +148,35 @@ export default function SettingsAccountsPage() {
         <p className="text-zinc-500">Conecta tus redes para que Alfred pueda gestionarlas</p>
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex gap-3">
-        <AlertCircle className="h-5 w-5 flex-shrink-0 text-amber-600 mt-0.5" />
-        <div className="text-sm text-amber-800">
-          <p className="font-medium">Configuración de credenciales requerida</p>
-          <p className="mt-0.5">
-            Para conectar redes reales, agrega las credenciales de cada app en el archivo{' '}
-            <code className="rounded bg-amber-100 px-1 font-mono text-xs">.env</code>.
-            Consulta{' '}
-            <code className="rounded bg-amber-100 px-1 font-mono text-xs">.env.example</code>{' '}
-            para ver las variables requeridas.
+      {notification && (
+        <div
+          className={`rounded-xl border p-4 flex gap-3 ${
+            notification.type === 'success'
+              ? 'border-green-200 bg-green-50'
+              : 'border-red-200 bg-red-50'
+          }`}
+        >
+          {notification.type === 'success' ? (
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600 mt-0.5" />
+          ) : (
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600 mt-0.5" />
+          )}
+          <p
+            className={`text-sm font-medium ${
+              notification.type === 'success' ? 'text-green-800' : 'text-red-800'
+            }`}
+          >
+            {notification.message}
           </p>
         </div>
-      </div>
+      )}
+
+      {loadError && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex gap-3">
+          <AlertCircle className="h-5 w-5 flex-shrink-0 text-amber-600 mt-0.5" />
+          <p className="text-sm text-amber-800">{loadError}</p>
+        </div>
+      )}
 
       <div className="space-y-4">
         {accounts.map((account) => (
@@ -124,7 +189,11 @@ export default function SettingsAccountsPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="font-semibold text-zinc-900">{account.label}</p>
-                {account.connected ? (
+                {account.disabled ? (
+                  <span className="flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-400">
+                    No disponible
+                  </span>
+                ) : account.connected ? (
                   <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                     <CheckCircle2 className="h-3 w-3" />
                     Conectado
@@ -136,7 +205,9 @@ export default function SettingsAccountsPage() {
                   </span>
                 )}
               </div>
-              {account.connected && account.username ? (
+              {account.disabled ? (
+                <p className="mt-0.5 text-xs text-zinc-400">{account.disabledReason}</p>
+              ) : account.connected && account.username ? (
                 <p className="mt-0.5 text-sm text-zinc-500">{account.username}</p>
               ) : (
                 <p className="mt-0.5 text-xs text-zinc-400">{account.description}</p>
@@ -144,7 +215,14 @@ export default function SettingsAccountsPage() {
             </div>
 
             <div className="flex-shrink-0">
-              {account.connected ? (
+              {account.disabled ? (
+                <button
+                  disabled
+                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-400 cursor-not-allowed"
+                >
+                  Próximamente
+                </button>
+              ) : account.connected ? (
                 <button
                   onClick={() => handleDisconnect(account.network)}
                   className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
@@ -158,7 +236,7 @@ export default function SettingsAccountsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
                 >
                   {connecting === account.network ? (
-                    'Conectando...'
+                    'Redirigiendo...'
                   ) : (
                     <>
                       <ExternalLink className="h-3 w-3" />
@@ -176,7 +254,7 @@ export default function SettingsAccountsPage() {
         <p className="text-xs text-zinc-500 font-medium mb-2">Permisos requeridos por red</p>
         <ul className="space-y-1 text-xs text-zinc-400">
           <li><span className="font-medium text-zinc-600">Instagram:</span> instagram_basic, instagram_content_publish, instagram_manage_comments</li>
-          <li><span className="font-medium text-zinc-600">TikTok:</span> video.publish, video.upload, comment.list.manage</li>
+          <li><span className="font-medium text-zinc-600">TikTok:</span> video.publish, video.upload, comment.list.manage (requiere aprobación)</li>
           <li><span className="font-medium text-zinc-600">LinkedIn:</span> w_member_social, r_organization_social, rw_organization_admin</li>
         </ul>
       </div>

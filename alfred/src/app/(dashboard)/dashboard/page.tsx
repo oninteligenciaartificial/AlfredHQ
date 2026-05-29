@@ -1,25 +1,58 @@
 import Link from 'next/link'
-import { ArrowRight, CheckCircle2, Circle, Zap } from 'lucide-react'
+import { ArrowRight, Circle, Zap } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { getOrCreateWorkspace } from '@/lib/supabase/workspace'
+import { getDashboardMetrics, getTodayTasks } from '@/lib/supabase/queries'
+import { redirect } from 'next/navigation'
 
-const MOCK_METRICS = [
-  { label: 'Seguidores totales', value: '9,380', trend: '+4.2%', up: true },
-  { label: 'Engagement rate', value: '3.8%', trend: '+0.6%', up: true },
-  { label: 'Posts esta semana', value: '3', trend: '', up: true },
-  { label: 'Tareas pendientes', value: '3', trend: '', up: false },
-]
+export default async function DashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-const MOCK_TASKS = [
-  { id: '1', type: 'PUBLICAR', title: 'Publicar post sobre tu servicio estrella', network: 'instagram', priority: 5, status: 'pending' },
-  { id: '2', type: 'CRECER', title: 'Interactuar con 10 cuentas de tu nicho', network: 'instagram', priority: 4, status: 'pending' },
-  { id: '3', type: 'ANALIZAR', title: 'Revisar métricas de la semana', network: null, priority: 3, status: 'pending' },
-]
+  if (!user) {
+    redirect('/login')
+  }
 
-export default function DashboardPage() {
+  const workspace = await getOrCreateWorkspace(user.id)
+  const [metrics, tasks] = await Promise.all([
+    getDashboardMetrics(workspace.id),
+    getTodayTasks(workspace.id),
+  ])
+
+  const topTasks = tasks.filter((t) => t.status === 'pending').slice(0, 3)
+
   const today = new Date().toLocaleDateString('es-ES', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   })
+
+  const metricsDisplay = [
+    {
+      label: 'Seguidores totales',
+      value: metrics.totalFollowers.toLocaleString('es-ES'),
+      trend: '',
+      up: true,
+    },
+    {
+      label: 'Engagement rate',
+      value: `${metrics.engagementRate.toFixed(1)}%`,
+      trend: '',
+      up: true,
+    },
+    {
+      label: 'Posts esta semana',
+      value: String(metrics.postsThisWeek),
+      trend: '',
+      up: true,
+    },
+    {
+      label: 'Tareas pendientes',
+      value: String(metrics.pendingTasksCount),
+      trend: '',
+      up: false,
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -30,7 +63,7 @@ export default function DashboardPage() {
 
       {/* Metric cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {MOCK_METRICS.map((metric) => (
+        {metricsDisplay.map((metric) => (
           <div key={metric.label} className="rounded-xl border border-zinc-200 bg-white p-5">
             <p className="text-sm text-zinc-500">{metric.label}</p>
             <p className="mt-2 text-3xl font-bold text-zinc-900">{metric.value}</p>
@@ -56,15 +89,19 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="space-y-3">
-            {MOCK_TASKS.map((task) => (
-              <div key={task.id} className="flex items-center gap-3">
-                <Circle className="h-4 w-4 flex-shrink-0 text-zinc-300" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-zinc-900">{task.title}</p>
-                  <p className="text-xs text-zinc-400">{task.type} · {task.network ?? 'todas las redes'}</p>
+            {topTasks.length === 0 ? (
+              <p className="text-sm text-zinc-400">Sin tareas pendientes</p>
+            ) : (
+              topTasks.map((task) => (
+                <div key={task.id} className="flex items-center gap-3">
+                  <Circle className="h-4 w-4 flex-shrink-0 text-zinc-300" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-zinc-900">{task.title}</p>
+                    <p className="text-xs text-zinc-400">{task.type} · {task.network ?? 'todas las redes'}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -81,9 +118,11 @@ export default function DashboardPage() {
           </div>
           <div className="rounded-lg bg-zinc-50 p-4">
             <p className="text-sm text-zinc-600">
-              Hoy es un buen día para publicar contenido — es jueves, el engagement
-              en Instagram suele ser 20% mayor en la tarde. Tienes 3 tareas pendientes
-              y 0 publicaciones programadas para hoy.
+              Tienes {metrics.pendingTasksCount} tarea{metrics.pendingTasksCount !== 1 ? 's' : ''} pendiente{metrics.pendingTasksCount !== 1 ? 's' : ''} hoy
+              y {metrics.postsThisWeek} publicacion{metrics.postsThisWeek !== 1 ? 'es' : ''} esta semana.
+              {metrics.totalFollowers > 0
+                ? ` Alcanzaste ${metrics.totalFollowers.toLocaleString('es-ES')} seguidores totales.`
+                : ' Conecta tus redes para ver métricas reales.'}
             </p>
           </div>
           <Link
@@ -104,7 +143,7 @@ export default function DashboardPage() {
         <div>
           <p className="text-sm font-medium text-amber-900">Conecta tus redes sociales</p>
           <p className="text-xs text-amber-700 mt-0.5">
-            Los datos actuales son de ejemplo. Ve a{' '}
+            Ve a{' '}
             <Link href="/settings/accounts" className="underline">
               Settings → Cuentas
             </Link>{' '}
