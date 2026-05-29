@@ -52,6 +52,7 @@ export const dateRangeSchema = z.object({
 export const postSchema = z.object({
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
   media_urls: z.array(z.string().url()).max(10).optional(),
+  media_type: z.enum(['image', 'video', 'carousel', 'text']).optional(),
   networks: z.array(socialNetworkSchema).min(1).max(3),
   scheduled_at: z.string().datetime().optional(),
 })

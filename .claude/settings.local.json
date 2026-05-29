@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(make-plan)",
+      "Skill(make-plan:*)",
+      "Bash(node -e ' *)",
+      "Skill(context-restore)",
+      "Skill(context-restore:*)"
+    ]
+  }
+}
