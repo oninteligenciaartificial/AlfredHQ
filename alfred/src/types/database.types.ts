@@ -32,6 +32,38 @@ export type Database = {
           created_at?: string | null
         }
       }
+      businesses: {
+        Row: {
+          id: string
+          workspace_id: string
+          name: string
+          nit: string | null
+          tax_regime: string | null
+          currency: string
+          is_active: boolean
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          name: string
+          nit?: string | null
+          tax_regime?: string | null
+          currency?: string
+          is_active?: boolean
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          name?: string
+          nit?: string | null
+          tax_regime?: string | null
+          currency?: string
+          is_active?: boolean
+          created_at?: string | null
+        }
+      }
       social_accounts: {
         Row: {
           id: string
@@ -260,6 +292,35 @@ export type Database = {
           recorded_at?: string | null
         }
       }
+      notification_channels: {
+        Row: {
+          id: string
+          workspace_id: string
+          type: string
+          target: string
+          label: string
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          type: string
+          target: string
+          label: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          type?: string
+          target?: string
+          label?: string
+          is_active?: boolean
+          created_at?: string
+        }
+      }
       audit_logs: {
         Row: {
           id: string
@@ -302,6 +363,123 @@ export type Database = {
           details?: Json | null
           level?: string
           created_at?: string | null
+        }
+      }
+      tax_obligations: {
+        Row: {
+          id: string
+          workspace_id: string
+          business_id: string | null
+          tax_type: string
+          period: string
+          due_date: string
+          status: string
+          filed_at: string | null
+          filed_amount: number | null
+          reminder_sent_at: string | null
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          business_id?: string | null
+          tax_type: string
+          period: string
+          due_date: string
+          status?: string
+          filed_at?: string | null
+          filed_amount?: number | null
+          reminder_sent_at?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          business_id?: string | null
+          tax_type?: string
+          period?: string
+          due_date?: string
+          status?: string
+          filed_at?: string | null
+          filed_amount?: number | null
+          reminder_sent_at?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+      }
+      notes: {
+        Row: {
+          id: string
+          workspace_id: string
+          business_id: string | null
+          title: string | null
+          body: string | null
+          pinned: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          business_id?: string | null
+          title?: string | null
+          body?: string | null
+          pinned?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          business_id?: string | null
+          title?: string | null
+          body?: string | null
+          pinned?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
+      todos: {
+        Row: {
+          id: string
+          workspace_id: string
+          business_id: string | null
+          title: string
+          notes: string | null
+          due_date: string | null
+          priority: number | null
+          status: string
+          source: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          business_id?: string | null
+          title: string
+          notes?: string | null
+          due_date?: string | null
+          priority?: number | null
+          status?: string
+          source?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          business_id?: string | null
+          title?: string
+          notes?: string | null
+          due_date?: string | null
+          priority?: number | null
+          status?: string
+          source?: string
+          created_at?: string | null
+          updated_at?: string | null
         }
       }
     }
