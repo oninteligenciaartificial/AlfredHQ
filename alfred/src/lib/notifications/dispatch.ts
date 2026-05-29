@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Payment, TaxObligation, Todo } from '@/types/butler'
 import { sendTelegramMessage, formatPaymentAlert, formatTaxAlert, formatTodoDueAlert } from './telegram'
 import { sendDiscordMessage } from './discord'
+import { sendPaymentConfirmed, sendWelcome, sendTaxReminder } from './email'
 
 export async function dispatchAlert(
   supabase: SupabaseClient,
@@ -74,4 +75,47 @@ export async function dispatchTodoDue(
     due_date: todo.due_date,
   })
   await dispatchAlert(supabase, workspaceId, message)
+}
+
+export async function dispatchPaymentConfirmedEmail(params: {
+  toEmail: string
+  payerName: string
+  concept: string
+  amount: number
+  currency: string
+  businessName: string
+  paidAt: string
+}): Promise<void> {
+  const { toEmail, ...rest } = params
+  const ok = await sendPaymentConfirmed({ to: toEmail, ...rest })
+  if (!ok) {
+    console.error('[dispatch] dispatchPaymentConfirmedEmail failed', { toEmail })
+  }
+}
+
+export async function dispatchWelcomeEmail(params: {
+  toEmail: string
+  name: string
+  workspaceName: string
+}): Promise<void> {
+  const { toEmail, ...rest } = params
+  const ok = await sendWelcome({ to: toEmail, ...rest })
+  if (!ok) {
+    console.error('[dispatch] dispatchWelcomeEmail failed', { toEmail })
+  }
+}
+
+export async function dispatchTaxReminderEmail(params: {
+  toEmail: string
+  businessName: string
+  taxType: string
+  period: string
+  dueDate: string
+  daysUntil: number
+}): Promise<void> {
+  const { toEmail, ...rest } = params
+  const ok = await sendTaxReminder({ to: toEmail, ...rest })
+  if (!ok) {
+    console.error('[dispatch] dispatchTaxReminderEmail failed', { toEmail })
+  }
 }
