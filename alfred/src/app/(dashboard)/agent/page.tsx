@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { AgentMode } from '@/types'
-import type { MessageParam } from '@anthropic-ai/sdk/resources/messages'
 import { Send, Loader2, Zap, Eye } from 'lucide-react'
 
 interface Message {
@@ -15,16 +14,22 @@ export default function AgentPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [agentMode, setAgentMode] = useState<AgentMode>('advisory')
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    fetch('/api/workspace')
+      .then((r) => r.json())
+      .then((data: { workspaceId?: string }) => {
+        if (data.workspaceId) setWorkspaceId(data.workspaceId)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  function getHistory(): MessageParam[] {
-    return messages.map((m) => ({ role: m.role, content: m.content }))
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,8 +49,8 @@ export default function AgentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          history: getHistory(),
           agentMode,
+          ...(workspaceId ? { workspaceId } : {}),
         }),
       })
 

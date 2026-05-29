@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  public: {
+  alfred: {
     Tables: {
       workspaces: {
         Row: {
@@ -491,6 +491,7 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: Json
       }
+      // Note: actual function is alfred.get_agent_context — call via rpc with schema routing
     }
     Enums: {
       [_ in never]: never

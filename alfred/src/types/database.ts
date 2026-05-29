@@ -2,7 +2,7 @@ import type { Database } from './database.types'
 
 export type { Database }
 
-export type Tables = Database['public']['Tables']
+export type Tables = Database['alfred']['Tables']
 export type TablesInsert = {
   [K in keyof Tables]: Tables[K]['Insert']
 }
